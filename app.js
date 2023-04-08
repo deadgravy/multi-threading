@@ -84,9 +84,9 @@ app.post(
             const uploadedData = await Promise.all(
                 compressedImageBuffers.map((buffer, index) => {
                     const params = {
-                        Bucket: 'your_bucket_name',
+                        Bucket: 'pet.project.bucket',
                         Key: `${Date.now()}_${req.files[index].originalname}`,
-                        Body: buffer,
+                        Body: Buffer.from(buffer), // Convert Uint8Array to Buffer
                     };
                     return s3.upload(params).promise();
                 })
