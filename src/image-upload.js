@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const AWS = require('aws-sdk');
 const Jimp = require('jimp');
-const {Worker} = require('worker_threads');
+const { Worker } = require('worker_threads');
 const cors = require('cors');
 const app = express();
 
@@ -83,43 +83,70 @@ app.post(
             // Get the array of file buffers from the request
             const imageBuffers = req.files.map((file) => file.buffer);
 
-            // Start a new worker thread to compress each image
-            const workers = imageBuffers.map((imageBuffer) => {
-                return new Promise((resolve, reject) => {
-                    const worker = new Worker('./image-compression-worker.js', {
-                        workerData: imageBuffer,
+            // Generate unique file names for each image
+            const fileNames = req.files.map(
+                (file) => `${Date.now()}_${file.originalname}`
+            );
+
+            // Compress each image using worker threads and Promise.all()
+            const compressedImageBuffers = await Promise.all(
+                imageBuffers.map((buffer) => {
+                    return new Promise((resolve, reject) => {
+                        const worker = new Worker('./imageCompressionWorker.js', {
+                            workerData: buffer,
+                        });
+                        worker.on('message', resolve);
+                        worker.on('error', (error) => {
+                            console.error('Worker error:', error);
+                            reject(error);
+                        });
+                        worker.on('exit', (code) => {
+                            if (code !== 0) {
+                                const errMsg = `Worker stopped with exit code ${code}`;
+                                console.error(errMsg);
+                                reject(new Error(errMsg));
+                            }
+                        });
+                    }).catch((error) => {
+                        console.error('Error during image compression:', error);
+                        throw error;
                     });
-                    worker.on('message', resolve);
-                    worker.on('error', reject);
-                });
+                })
+            );
+
+            // Generate image locations based on the unique file names
+            const imageLocations = fileNames.map(
+                (fileName) => `https://pet.project.bucket.s3.amazonaws.com/${fileName}`
+            );
+
+            // Send response to the client
+            res.send({
+                message: 'Images compressed successfully',
+                data: imageLocations,
             });
 
-            // Wait for all worker threads to finish using Promise.all()
-            const compressedImageBuffers = await Promise.all(workers);
-
             // Upload each compressed image to S3 bucket in parallel using Promise.all()
-            const uploadedData = await Promise.all(
+            Promise.all(
                 compressedImageBuffers.map((buffer, index) => {
                     const params = {
                         Bucket: 'pet.project.bucket',
-                        Key: `${Date.now()}_${req.files[index].originalname}`,
+                        Key: fileNames[index],
                         Body: buffer,
                     };
                     return s3.upload(params).promise();
                 })
-            );
-
-            // Send response to the
-            // client
-            res.send({
-                message: 'Images compressed and uploaded successfully',
-                data: uploadedData,
-            });
+            )
+                .then((uploadedData) => {
+                    console.log('Images uploaded successfully:', uploadedData);
+                })
+                .catch((error) => {
+                    console.error('Error uploading images:', error);
+                });
         } catch (error) {
-            console.error(error);
+            console.error('Error in /non-blocking-compress endpoint:', error);
             res.status(500).send({
                 message: 'Error compressing images',
-                error,
+                error: error.message,
             });
         }
     }
