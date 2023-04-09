@@ -4,6 +4,7 @@ const AWS = require('aws-sdk');
 const Jimp = require('jimp');
 const {Worker} = require('worker_threads');
 const cors = require('cors');
+
 const app = express();
 
 // Set up CORS middleware
@@ -49,13 +50,17 @@ app.post(
 
             // Upload each compressed image to S3 bucket in parallel using Promise.all()
             const uploadedData = await Promise.all(
-                compressedImageBuffers.map((buffer, index) => {
+                compressedImageBuffers.map(async (buffer, index) => {
                     const params = {
                         Bucket: 'pet.project.bucket',
                         Key: `${Date.now()}_${req.files[index].originalname}`,
                         Body: buffer,
                     };
-                    return s3.upload(params).promise();
+                    const uploadedData = await s3.upload(params).promise();
+                    console.log(
+                        `Uploaded ${req.files[index].originalname} to S3: ${uploadedData.Location}`
+                    );
+                    return uploadedData;
                 })
             );
 
@@ -78,19 +83,31 @@ app.post(
 app.post(
     '/non-blocking-compress',
     upload.array('images', 200),
+
     async (req, res) => {
+        console.log('Received request to compress images');
         try {
             // Get the array of file buffers from the request
             const imageBuffers = req.files.map((file) => file.buffer);
-
             // Start a new worker thread to compress each image
-            const workers = imageBuffers.map((imageBuffer) => {
+            const workers = imageBuffers.map((imageBuffer, index) => {
                 return new Promise((resolve, reject) => {
+                    console.log(`Starting worker thread for image ${index}`);
                     const worker = new Worker('./image-compression-worker.js', {
                         workerData: imageBuffer,
                     });
-                    worker.on('message', resolve);
-                    worker.on('error', reject);
+                    worker.on('message', (data) => {
+                        console.log(
+                            `Worker thread finished for image ${index}`
+                        );
+                        resolve(data);
+                    });
+                    worker.on('error', (err) => {
+                        console.error(
+                            `Error in worker thread for image ${index}: ${err}`
+                        );
+                        reject(err);
+                    });
                 });
             });
 
@@ -99,21 +116,36 @@ app.post(
 
             // Upload each compressed image to S3 bucket in parallel using Promise.all()
             const uploadedData = await Promise.all(
-                compressedImageBuffers.map((buffer, index) => {
-                    const params = {
-                        Bucket: 'pet.project.bucket',
-                        Key: `${Date.now()}_${req.files[index].originalname}`,
-                        Body: buffer,
-                    };
-                    return s3.upload(params).promise();
+                compressedImageBuffers.map(async (buffer, index) => {
+                    const file = req.files[index];
+                    const filename = file.originalname;
+                    try {
+                        const params = {
+                            Bucket: 'pet.project.bucket',
+                            Key: `${Date.now()}_${filename}`,
+                            Body: buffer,
+                        };
+                        const uploadedData = await s3.upload(params).promise();
+                        console.log(
+                            `Uploaded ${filename} to S3: ${uploadedData.Location}`
+                        );
+                        return uploadedData;
+                    } catch (error) {
+                        console.error(
+                            `Error uploading ${filename} to S3: ${error}`
+                        );
+                        return null;
+                    }
                 })
             );
 
-            // Send response to the
-            // client
+            // Filter out any null values in the uploadedData array
+            const filteredData = uploadedData.filter((data) => data !== null);
+
+            // Send response to the client
             res.send({
                 message: 'Images compressed and uploaded successfully',
-                data: uploadedData,
+                data: filteredData,
             });
         } catch (error) {
             console.error(error);
