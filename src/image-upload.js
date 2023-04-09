@@ -24,23 +24,8 @@ const upload = multer({
     storage: multer.memoryStorage(),
 });
 
-// Define endpoint to list all existing images in S3 bucket
-app.get('/list-images', async (req, res) => {
-    try {
-      const params = {
-        Bucket: 'pet.project.bucket',
-      };
-      const { Contents } = await s3.listObjects(params).promise();
-      const imageUrls = Contents.map((content) => s3.getSignedUrl('getObject', { Bucket: params.Bucket, Key: content.Key }));
-      res.send({ message: 'All existing images retrieved successfully', data: imageUrls });
-    } catch (error) {
-      console.error(error);
-      res.status(500).send({ message: 'Error retrieving existing images', error });
-    }
-});
-
 // Define endpoint to handle blocking image compression for multiple images
-app.post('/blocking-compress', upload.array('images', 10), async (req, res) => {
+app.post('/blocking-compress', upload.array('images', 200), async (req, res) => {
     try {
         // Get the array of file buffers from the request
         const imageBuffers = req.files.map((file) => file.buffer);
@@ -83,7 +68,7 @@ app.post('/blocking-compress', upload.array('images', 10), async (req, res) => {
 // Define endpoint to handle non-blocking image compression for multiple images
 app.post(
     '/non-blocking-compress',
-    upload.array('images', 10),
+    upload.array('images', 200),
     async (req, res) => {
         try {
             // Get the array of file buffers from the request

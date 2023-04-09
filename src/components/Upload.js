@@ -4,34 +4,18 @@ import axios from 'axios';
 function ImageUploader() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [imageUrls, setImageUrls] = useState([]);
+  const [uploadedImages, setUploadedImages] = useState([]);
 
   const axiosInstance = axios.create({
     baseURL: 'http://localhost:3000',
   });
 
-  useEffect(() => {
-    async function fetchImages() {
-      try {
-        const response = await axiosInstance.get('/list-images');
-        console.log(response.data); // add this line to check the response data
-        setImageUrls(response.data);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-    fetchImages();
-  }, []);
-
-  console.log(typeof imageUrls);
-  console.log(imageUrls);
-  
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
     setImages(files);
   };
 
-  const handleUploadClick = async () => {
+  const handleBlockingCompress = async () => {
     setUploading(true);
     const formData = new FormData();
     images.forEach((image) => {
@@ -47,28 +31,55 @@ function ImageUploader() {
       setUploading(false);
       console.log(response.data);
       // Update the state to display the uploaded images
-      // from their S3 URLs
-      // Example: setUploadedImages(response.data.data);
+      const imageLocations = response.data.data.map((data) => data.Location);
+      console.log(imageLocations);
+      setUploadedImages(imageLocations);
     } catch (error) {
       console.error(error);
       setUploading(false);
     }
   };
 
-  console.log(imageUrls); // add this line to check the value of imageUrls
+  const handleNonBlockingCompress = async () => {
+    setUploading(true);
+    const formData = new FormData();
+    images.forEach((image) => {
+      formData.append('images', image);
+    });
+    try {
+      const response = await axiosInstance.post('/non-blocking-compress', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setImages([]);
+      setUploading(false);
+      console.log(response.data);
+      // Update the state to display the uploaded images
+      const imageLocations = response.data.data.map((data) => data.Location);
+      console.log(imageLocations);
+      setUploadedImages(imageLocations);
+    } catch (error) {
+      console.error(error);
+      setUploading(false);
+    }
+  };
 
   return (
     <div>
       <div style={{ marginBottom: '20px' }}>
         <input type="file" onChange={handleFileChange} multiple />
-        <button onClick={handleUploadClick} disabled={uploading || images.length === 0}>
-          {uploading ? 'Uploading...' : 'Upload'}
+        <button onClick={handleBlockingCompress} disabled={uploading || images.length === 0}>
+          {uploading ? 'Uploading (Blocking)...' : 'Upload (Blocking)'}
+        </button>
+        <button style={{marginLeft: '10px'}} onClick={handleNonBlockingCompress} disabled={uploading || images.length === 0}>
+          {uploading ? 'Uploading (Non-blocking)...' : 'Upload (Non-blocking)'}
         </button>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-        {imageUrls.map((imageUrl, index) => (
+        {uploadedImages.map((imageUrl, index) => (
           <div key={index} style={{ marginRight: '10px', marginBottom: '10px' }}>
-            <img src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
+            <img key={index} src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
           </div>
         ))}
       </div>
