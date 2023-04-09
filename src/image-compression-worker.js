@@ -1,11 +1,13 @@
 const {parentPort, workerData} = require('worker_threads');
-const sharp = require('sharp');
+const Jimp = require('jimp');
 
-// Define function to resize and compress image buffer using Sharp
+// Define function to resize and compress image buffer using Jimp
 async function compressImage(imageBuffer) {
-    const compressedImageBuffer = await sharp(imageBuffer)
-        .resize(800, 800, {fit: 'inside', withoutEnlargement: true})
-        .toBuffer();
+    const image = await Jimp.read(imageBuffer);
+    const compressedImageBuffer = await image
+        .resize(800, 800)
+        .quality(80)
+        .getBufferAsync(Jimp.MIME_JPEG);
     return compressedImageBuffer;
 }
 
