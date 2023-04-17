@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import LazyImage from './LazyImage';
+import RegularImage from './RegularImage';
 
 function ImageUploader() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
+  const [useLazyLoading, setUseLazyLoading] = useState(true);
 
   const axiosInstance = axios.create({
     baseURL: 'http://localhost:3000',
@@ -31,7 +33,6 @@ function ImageUploader() {
       setImages([]);
       setUploading(false);
       console.log(response.data);
-      // Update the state to display the uploaded images
       const imageLocations = response.data.data.map((data) => data.Location);
       console.log(imageLocations);
       setUploadedImages(imageLocations);
@@ -56,7 +57,6 @@ function ImageUploader() {
       setImages([]);
       setUploading(false);
       console.log(response.data);
-      // Update the state to display the uploaded images
       const imageLocations = response.data.data.map((data) => data.Location);
       console.log(imageLocations);
       setUploadedImages(imageLocations);
@@ -73,15 +73,25 @@ function ImageUploader() {
         <button onClick={handleBlockingCompress} disabled={uploading || images.length === 0}>
           {uploading ? 'Uploading (Blocking)...' : 'Upload (Blocking)'}
         </button>
-        <button style={{marginLeft: '10px'}} onClick={handleNonBlockingCompress} disabled={uploading || images.length === 0}>
+        <button
+          style={{ marginLeft: '10px' }}
+          onClick={handleNonBlockingCompress}
+          disabled={uploading || images.length === 0}
+        >
           {uploading ? 'Uploading (Non-blocking)...' : 'Upload (Non-blocking)'}
+        </button>
+        <button onClick={() => setUseLazyLoading(!useLazyLoading)}>
+          {useLazyLoading ? 'Active: Lazy Loading (Click to switch to Regular Loading)' : 'Active: Regular Loading (Click to switch to Lazy Loading)'}
         </button>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>
         {uploadedImages.map((imageUrl, index) => (
           <div key={index} style={{ marginRight: '10px', marginBottom: '10px' }}>
-            <LazyImage src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
-            {/* <img key={index} src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" /> */}
+            {useLazyLoading ? (
+              <LazyImage src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
+            ) : (
+              <RegularImage src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
+            )}
           </div>
         ))}
       </div>
