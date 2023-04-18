@@ -3,7 +3,7 @@ const Jimp = require('jimp');
 
 async function compressImage(buffer) {
     try {
-      console.log('Received buffer in worker:', buffer);
+      // console.log('Received buffer in worker:', buffer);
       const imageBuffer = Buffer.from(buffer); // Convert Uint8Array to Buffer
       const image = await Jimp.read(imageBuffer); // Pass the Buffer to Jimp
       const compressedBuffer = await image

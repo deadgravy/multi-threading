@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import LazyImage from './LazyImage';
 import RegularImage from './RegularImage';
 
 function ImageUploader() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
-  const [useLazyLoading, setUseLazyLoading] = useState(true);
 
   const axiosInstance = axios.create({
     baseURL: 'http://localhost:3000',
@@ -34,7 +32,7 @@ function ImageUploader() {
       setUploading(false);
       console.log(response.data);
       const imageLocations = response.data.data.map((data) => data.Location);
-      console.log(imageLocations);
+      // console.log(imageLocations);
       setUploadedImages(imageLocations);
     } catch (error) {
       console.error(error);
@@ -58,7 +56,7 @@ function ImageUploader() {
       setUploading(false);
       console.log(response.data);
       const imageLocations = response.data.data.map((data) => data.Location);
-      console.log(imageLocations);
+      // console.log(imageLocations);
       setUploadedImages(imageLocations);
     } catch (error) {
       console.error(error);
@@ -80,18 +78,11 @@ function ImageUploader() {
         >
           {uploading ? 'Uploading (Non-blocking)...' : 'Upload (Non-blocking)'}
         </button>
-        <button onClick={() => setUseLazyLoading(!useLazyLoading)}>
-          {useLazyLoading ? 'Active: Lazy Loading (Click to switch to Regular Loading)' : 'Active: Regular Loading (Click to switch to Lazy Loading)'}
-        </button>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>
         {uploadedImages.map((imageUrl, index) => (
           <div key={index} style={{ marginRight: '10px', marginBottom: '10px' }}>
-            {useLazyLoading ? (
-              <LazyImage src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
-            ) : (
-              <RegularImage src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
-            )}
+            <RegularImage src={imageUrl} alt={`Uploaded image ${index}`} width="200" height="200" />
           </div>
         ))}
       </div>

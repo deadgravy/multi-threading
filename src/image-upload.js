@@ -32,6 +32,8 @@ app.post(
     upload.array('images', 200),
     async (req, res) => {
         try {
+            // Start the timer
+            console.time('blocking-compress');
             // Get the array of file buffers from the request
             const imageBuffers = req.files.map((file) => file.buffer);
 
@@ -64,6 +66,9 @@ app.post(
                 message: 'Images compressed and uploaded successfully',
                 data: uploadedData,
             });
+
+            // End the timer
+            console.timeEnd('blocking-compress');
         } catch (error) {
             console.error(error);
             res.status(500).send({
@@ -80,10 +85,13 @@ app.post(
     upload.array('images', 200),
     async (req, res) => {
         try {
+            // Start the timer
+            console.time('non-blocking-compress');
+
             // Get the array of file buffers from the request
             const imageBuffers = req.files.map((file) => file.buffer);
 
-            console.log('Received image buffers:', imageBuffers.length); // <-- Add this log
+            // console.log('Received image buffers:', imageBuffers.length);
 
             // Generate unique file names for each image
             const fileNames = req.files.map(
@@ -122,16 +130,10 @@ app.post(
                 })
             );
 
-            console.log(
-                'Compressed image buffers:',
-                compressedImageBuffers.length
-            ); // <-- Add this log
-
-            // Generate image locations based on the unique file names
-            const imageLocations = fileNames.map(
-                (fileName) =>
-                    `https://pet.project.bucket.s3.amazonaws.com/${fileName}`
-            );
+            // console.log(
+            //     'Compressed image buffers:',
+            //     compressedImageBuffers.length
+            // );
 
             // Upload each compressed image to S3 bucket in parallel using Promise.all()
             const uploadedData = await Promise.all(
@@ -149,6 +151,9 @@ app.post(
                 message: 'Images compressed and uploaded successfully',
                 data: uploadedData,
             });
+
+            // End the timer
+            console.timeEnd('non-blocking-compress');
         } catch (error) {
             console.error('Error in /non-blocking-compress endpoint:', error);
             res.status(500).send({
