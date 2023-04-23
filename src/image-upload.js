@@ -98,7 +98,7 @@ app.post(
                 imageBuffers.map((buffer) => {
                     return new Promise((resolve, reject) => {
                         const worker = new Worker(
-                            './image-compression-worker.js',
+                            './src/image-compression-worker.js',
                             {
                                 workerData: buffer,
                             }
