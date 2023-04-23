@@ -1,0 +1,4 @@
+[submodule "Packages/s3-simplified"]
+	path = Packages/s3-simplified
+	url = https://github.com/catcd1w3r5/s3-simplified
+	branch = main

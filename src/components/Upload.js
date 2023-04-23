@@ -31,7 +31,7 @@ function ImageUploader() {
       setImages([]);
       setUploading(false);
       console.log(response.data);
-      const imageLocations = response.data.data.map((data) => data.Location);
+      const imageLocations = response.data.data;
       // console.log(imageLocations);
       setUploadedImages(imageLocations);
     } catch (error) {
@@ -55,7 +55,7 @@ function ImageUploader() {
       setImages([]);
       setUploading(false);
       console.log(response.data);
-      const imageLocations = response.data.data.map((data) => data.Location);
+      const imageLocations = response.data.data;
       // console.log(imageLocations);
       setUploadedImages(imageLocations);
     } catch (error) {
