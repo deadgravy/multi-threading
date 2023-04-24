@@ -1,10 +1,10 @@
 const express = require('express');
 const multer = require('multer');
-const AWS = require('aws-sdk');
 const Jimp = require('jimp');
 const {Worker} = require('worker_threads');
 const cors = require('cors');
 const app = express();
+const {S3Lib, S3ObjectBuilder, Metadata} = require('../Packages/s3-simplified/dist');
 
 // Set up CORS middleware
 app.use(
@@ -15,12 +15,19 @@ app.use(
     })
 );
 
-// Configure AWS S3 SDK
-const s3 = new AWS.S3({
-    accessKeyId: 'AKIA4REW4G64T6ZHBDOA',
-    secretAccessKey: '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',
-});
-
+const getBucket = (() => {
+    let bucket;
+    /**
+     * @returns {Promise<S3Bucket>}
+     */
+    return async () => {
+        if (!bucket) {
+            bucket = await S3Lib.Default.getOrCreateBucket('pet.project.bucket');
+            // bucket = await S3Lib.Default.getOrCreateBucket('imagebuckettesting');
+        }
+        return bucket;
+    }
+})()
 // Configure multer middleware to handle multiple image uploads
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -49,18 +56,7 @@ app.post(
                 })
             );
 
-            // Upload each compressed image to S3 bucket in parallel using Promise.all()
-            const uploadedData = await Promise.all(
-                compressedImageBuffers.map((buffer, index) => {
-                    const params = {
-                        Bucket: 'pet.project.bucket',
-                        Key: `${Date.now()}_${req.files[index].originalname}`,
-                        Body: buffer,
-                    };
-                    return s3.upload(params).promise();
-                })
-            );
-
+            const uploadedData = await UploadToS3(compressedImageBuffers);
             // Send response to the client
             res.send({
                 message: 'Images compressed and uploaded successfully',
@@ -78,7 +74,6 @@ app.post(
         }
     }
 );
-
 // Define endpoint to handle non-blocking image compression for multiple images
 app.post(
     '/non-blocking-compress',
@@ -103,7 +98,7 @@ app.post(
                 imageBuffers.map((buffer) => {
                     return new Promise((resolve, reject) => {
                         const worker = new Worker(
-                            './image-compression-worker.js',
+                            './src/image-compression-worker.js',
                             {
                                 workerData: buffer,
                             }
@@ -136,16 +131,9 @@ app.post(
             // );
 
             // Upload each compressed image to S3 bucket in parallel using Promise.all()
-            const uploadedData = await Promise.all(
-                compressedImageBuffers.map((buffer, index) => {
-                    const params = {
-                        Bucket: 'pet.project.bucket',
-                        Key: fileNames[index],
-                        Body: Buffer.from(buffer), // <-- Convert Uint8Array to Buffer
-                    };
-                    return s3.upload(params).promise();
-                })
-            );
+
+            const uploadedData = await UploadToS3(compressedImageBuffers);
+
             // Send response to the client
             res.send({
                 message: 'Images compressed and uploaded successfully',
@@ -163,6 +151,22 @@ app.post(
         }
     }
 );
+
+async function UploadToS3(compressedImageBuffers) {
+    const parseData = compressedImageBuffers.map(buffer => {
+        const metadata = new Metadata({
+            'Content-Type': 'image/jpeg',
+            'Content-Length': buffer.length.toString(),
+        });
+        return new S3ObjectBuilder(buffer, metadata);
+    })
+
+    const bucket = await getBucket();
+    const uploadedData = await Promise.all(
+        parseData.map(builder => bucket.createObject(builder))
+    );
+    return Promise.all(uploadedData.map(data => data.generateLink()));
+}
 
 // Start the server
 app.listen(3000, () => {
