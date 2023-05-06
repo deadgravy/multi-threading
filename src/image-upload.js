@@ -4,7 +4,8 @@ const Jimp = require('jimp');
 const {Worker} = require('worker_threads');
 const cors = require('cors');
 const app = express();
-const {S3Lib, S3ObjectBuilder, Metadata} = require('../Packages/s3-simplified/dist');
+const {S3ObjectBuilder, Metadata} = require('../Packages/s3-simplified/dist');
+const S3 = require('./getS3Connection');
 
 // Set up CORS middleware
 app.use(
@@ -22,7 +23,7 @@ const getBucket = (() => {
      */
     return async () => {
         if (!bucket) {
-            bucket = await S3Lib.Default.getOrCreateBucket('pet.project.bucket');
+            bucket = await S3.getOrCreateBucket('pet.project.bucket');
             // bucket = await S3Lib.Default.getOrCreateBucket('imagebuckettesting');
         }
         return bucket;
